@@ -9,11 +9,11 @@ import entities.Account;
 import entities.Transaction;
 import exceptions.InsufficientFundsException;
 import exceptions.InvalidAmountException;
+import utils.TransactionStatistics;
 import utils.TransactionType;
 
 public class Operations {
 	
-
 	private static String generateTransactionId() {
 	    return UUID.randomUUID().toString();
 	}
@@ -25,6 +25,7 @@ public class Operations {
         System.out.println("3. Deposit Funds");
         System.out.println("4. Withdraw Funds");
         System.out.println("5. Transfer Funds to Another Account");
+        System.out.println("6. Display Transaction Statistics");
         System.out.println("10. Exit");
         System.out.print("Please select an option: ");
     }
@@ -120,6 +121,7 @@ public class Operations {
 		            accountNo
 		        );
 		        transactionList.add(transaction);
+		        Main.transactionStatistics.addTransactionAmount(amount);
 
 		        System.out.println("Deposit successful.");
 		    } catch (NumberFormatException e) {
@@ -154,6 +156,7 @@ public class Operations {
 		            accountNo
 		        );
 		        transactionList.add(transaction);
+		        Main.transactionStatistics.addTransactionAmount(amount);
 
 		        System.out.println("Withdrawal successful.");
 		    } catch (NumberFormatException e) {
@@ -204,6 +207,7 @@ public class Operations {
 		            destinationAccountNo
 		        );
 		        transactionList.add(transaction);
+		        Main.transactionStatistics.addTransactionAmount(amount);
 
 		        System.out.println("Transfer successful.");
 		    } catch (NumberFormatException e) {
@@ -213,6 +217,14 @@ public class Operations {
 		    }
 	 }
 
+	static void displayTransactionStatistics(TransactionStatistics stats) {
+	    System.out.println("\n--- Transaction Statistics ---");
+	    System.out.println("Total Transactions: " + stats.getTransactionCount());
+	    System.out.println("Total Amount Transacted: " + stats.getTotalAmount());
+	    System.out.println("Average Transaction Amount: " + stats.getAverageAmount());
+	    System.out.println("Maximum Transaction Amount: " + stats.getMaxAmount());
+	    System.out.println("Minimum Transaction Amount: " + stats.getMinAmount());
+	}
 
 
 

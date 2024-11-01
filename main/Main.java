@@ -7,19 +7,31 @@ import java.util.Scanner;
 import entities.Account;
 import entities.Transaction;
 import utils.FileManager;
+import utils.TransactionStatistics;
 
 public class Main {
     private static List<Account> accountList = new ArrayList<>();
     private static List<Transaction> transactionList = new ArrayList<Transaction>();
     private static Scanner scanner = new Scanner(System.in);
+    
+    static double[] transactionAmounts = new double[1000];
+    static int transactionCount = 0;
+    static TransactionStatistics transactionStatistics = new TransactionStatistics(1000);
 
     public static void main(String[] args) {
         accountList = FileManager.loadAccountsFromJSON("accounts.json");
         transactionList = FileManager.loadTransactionsFromJSON("transactions.json");
+        transactionStatistics = FileManager.loadTransactionAmounts("transactionAmounts.json");
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             FileManager.saveAccountsToJSON(accountList, "accounts.json");
             FileManager.saveTransactionsToJSON(transactionList, "transactions.json");
+            FileManager.saveTransactionAmounts(
+                    transactionStatistics.getTransactionAmounts(),
+                    transactionStatistics.getTransactionCount(),
+                    "transactionAmounts.json"
+                );
+            
             System.out.println("Data saved successfully.");
         }));
 
@@ -44,6 +56,7 @@ public class Main {
                 	Operations.transferFunds(accountList, transactionList, scanner);
                 	break;
                 case 6:
+                	Operations.displayTransactionStatistics(Main.transactionStatistics);
                 	break;
                 case 7:
                 	break;

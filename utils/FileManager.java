@@ -11,6 +11,7 @@ import com.google.gson.GsonBuilder;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class FileManager {
@@ -66,5 +67,38 @@ public class FileManager {
             e.printStackTrace();
         }
     }
+    
+    public static void saveTransactionAmounts(double[] transactionAmounts, int transactionCount, String filename) {
+        try (Writer writer = new FileWriter(filename)) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            double[] amountsToSave = Arrays.copyOf(transactionAmounts, transactionCount);
+            gson.toJson(amountsToSave, writer);
+            System.out.println("Transaction amounts saved to " + filename);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static TransactionStatistics loadTransactionAmounts(String filename) {
+        TransactionStatistics stats = new TransactionStatistics(1000);
+        try (Reader reader = new FileReader(filename)) {
+            Gson gson = new Gson();
+            double[] loadedAmounts = gson.fromJson(reader, double[].class);
+            if (loadedAmounts != null && loadedAmounts.length > 0) {
+                stats.setTransactionAmounts(loadedAmounts);
+                stats.setTransactionCount(loadedAmounts.length);
+            } else {
+                System.out.println("No transaction amounts found in " + filename + ". Starting with an empty array.");
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("No existing transaction amounts data found in " + filename + ". Starting fresh.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return stats;
+    }
+
+
+
 
 }
