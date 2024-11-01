@@ -38,6 +38,21 @@ public class Main {
                     Operations.depositFunds(accountList, transactionList, scanner);
                     break;
                 case 4:
+                	Operations.withdrawFunds(accountList, transactionList, scanner);
+                	break;
+                case 5:
+                	Operations.transferFunds(accountList, transactionList, scanner);
+                	break;
+                case 6:
+                	break;
+                case 7:
+                	break;
+                case 8:
+                	break;
+                case 9:
+                	// generare statistici si rapoarte
+                	break;
+                case 10:
                     running = false;
                     System.out.println("Exiting application...");
                     break;
