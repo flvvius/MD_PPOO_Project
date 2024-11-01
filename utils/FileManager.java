@@ -13,6 +13,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class FileManager {
 
@@ -58,7 +59,6 @@ public class FileManager {
         return transactions;
     }
 
-
     public static void saveTransactionsToJSON(List<Transaction> transactions, String filename) {
         try (Writer writer = new FileWriter(filename)) {
             gson.toJson(transactions, writer);
@@ -96,6 +96,58 @@ public class FileManager {
             e.printStackTrace();
         }
         return stats;
+    }
+    
+    public static void saveTransactionMatrix(TransactionMatrix transactionMatrix, String filename) {
+        try (Writer writer = new FileWriter(filename)) {
+            TransactionMatrixData data = new TransactionMatrixData();
+            data.setAccountIndexMap(transactionMatrix.getAccountIndexMap());
+            data.setTransactionMatrix(transactionMatrix.getTransactionMatrix());
+            gson.toJson(data, writer);
+            System.out.println("Transaction matrix saved to " + filename);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static TransactionMatrix loadTransactionMatrix(List<Account> accounts, String filename) {
+        TransactionMatrix transactionMatrix = new TransactionMatrix(accounts);
+        try (Reader reader = new FileReader(filename)) {
+            TransactionMatrixData data = gson.fromJson(reader, TransactionMatrixData.class);
+            if (data != null) {
+                transactionMatrix.setAccountIndexMap(data.getAccountIndexMap());
+                transactionMatrix.setTransactionMatrix(data.getTransactionMatrix());
+                transactionMatrix.rebuildAccountsList(accounts);
+            }
+            System.out.println("Transaction matrix loaded from " + filename);
+        } catch (FileNotFoundException e) {
+            System.out.println("No existing transaction matrix data found in " + filename + ". Starting fresh.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return transactionMatrix;
+    }
+
+
+    private static class TransactionMatrixData {
+        private Map<String, Integer> accountIndexMap;
+        private double[][] transactionMatrix;
+
+        public Map<String, Integer> getAccountIndexMap() {
+            return accountIndexMap;
+        }
+
+        public void setAccountIndexMap(Map<String, Integer> accountIndexMap) {
+            this.accountIndexMap = accountIndexMap;
+        }
+
+        public double[][] getTransactionMatrix() {
+            return transactionMatrix;
+        }
+
+        public void setTransactionMatrix(double[][] transactionMatrix) {
+            this.transactionMatrix = transactionMatrix;
+        }
     }
 
 

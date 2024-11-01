@@ -9,6 +9,7 @@ import entities.Account;
 import entities.Transaction;
 import exceptions.InsufficientFundsException;
 import exceptions.InvalidAmountException;
+import utils.TransactionMatrix;
 import utils.TransactionStatistics;
 import utils.TransactionType;
 
@@ -26,6 +27,7 @@ public class Operations {
         System.out.println("4. Withdraw Funds");
         System.out.println("5. Transfer Funds to Another Account");
         System.out.println("6. Display Transaction Statistics");
+        System.out.println("7. Display Transaction Matrix");
         System.out.println("10. Exit");
         System.out.print("Please select an option: ");
     }
@@ -58,6 +60,7 @@ public class Operations {
 
             Account newAccount = new Account(accountNo, owner, balance);
             accountList.add(newAccount);
+            Main.transactionMatrix.updateAccounts(accountList);
             System.out.println("Account created successfully!");
 
         } catch (NumberFormatException e) {
@@ -166,7 +169,7 @@ public class Operations {
 		    }
 	 }
 	 
-	static void transferFunds(List<Account> accountList, List<Transaction> transactionList, Scanner scanner) {
+	static void transferFunds(List<Account> accountList, List<Transaction> transactionList, TransactionMatrix transactionMatrix, Scanner scanner) {
 		    System.out.println("\n--- Transfer Funds ---");
 		    try {
 		        System.out.print("Enter Source Account Number: ");
@@ -208,6 +211,8 @@ public class Operations {
 		        );
 		        transactionList.add(transaction);
 		        Main.transactionStatistics.addTransactionAmount(amount);
+		        
+		        transactionMatrix.recordTransaction(sourceAccountNo, destinationAccountNo, amount);
 
 		        System.out.println("Transfer successful.");
 		    } catch (NumberFormatException e) {

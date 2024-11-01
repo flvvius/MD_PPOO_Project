@@ -7,12 +7,14 @@ import java.util.Scanner;
 import entities.Account;
 import entities.Transaction;
 import utils.FileManager;
+import utils.TransactionMatrix;
 import utils.TransactionStatistics;
 
 public class Main {
     private static List<Account> accountList = new ArrayList<>();
     private static List<Transaction> transactionList = new ArrayList<Transaction>();
     private static Scanner scanner = new Scanner(System.in);
+    static TransactionMatrix transactionMatrix;
     
     static double[] transactionAmounts = new double[1000];
     static int transactionCount = 0;
@@ -22,7 +24,8 @@ public class Main {
         accountList = FileManager.loadAccountsFromJSON("accounts.json");
         transactionList = FileManager.loadTransactionsFromJSON("transactions.json");
         transactionStatistics = FileManager.loadTransactionAmounts("transactionAmounts.json");
-
+        transactionMatrix = FileManager.loadTransactionMatrix(accountList, "transactionMatrix.json");
+        
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             FileManager.saveAccountsToJSON(accountList, "accounts.json");
             FileManager.saveTransactionsToJSON(transactionList, "transactions.json");
@@ -31,6 +34,8 @@ public class Main {
                     transactionStatistics.getTransactionCount(),
                     "transactionAmounts.json"
                 );
+            FileManager.saveTransactionMatrix(transactionMatrix, "transactionMatrix.json");
+
             
             System.out.println("Data saved successfully.");
         }));
@@ -53,12 +58,13 @@ public class Main {
                 	Operations.withdrawFunds(accountList, transactionList, scanner);
                 	break;
                 case 5:
-                	Operations.transferFunds(accountList, transactionList, scanner);
+                	Operations.transferFunds(accountList, transactionList, transactionMatrix, scanner);
                 	break;
                 case 6:
                 	Operations.displayTransactionStatistics(Main.transactionStatistics);
                 	break;
                 case 7:
+                	transactionMatrix.displayTransactionMatrix();
                 	break;
                 case 8:
                 	break;
