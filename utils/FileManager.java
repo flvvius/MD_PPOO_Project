@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import entities.Account;
 import entities.Transaction;
 import exceptions.InvalidAccountDataException;
+import exceptions.InvalidTransactionAmountsDataException;
 import exceptions.InvalidTransactionDataException;
 import exceptions.InvalidTransactionMatrixDataException;
 
@@ -174,20 +175,30 @@ public class FileManager {
     public static TransactionStatistics loadTransactionAmounts(String filename) {
         TransactionStatistics stats = new TransactionStatistics(1000);
         try (Reader reader = new FileReader(filename)) {
-            Gson gson = new Gson();
             double[] loadedAmounts = gson.fromJson(reader, double[].class);
             if (loadedAmounts != null && loadedAmounts.length > 0) {
+                validateTransactionAmounts(loadedAmounts);
                 stats.setTransactionAmounts(loadedAmounts);
                 stats.setTransactionCount(loadedAmounts.length);
             } else {
                 System.out.println("No transaction amounts found in " + filename + ". Starting with an empty array.");
             }
+        } catch (InvalidTransactionAmountsDataException e) {
+            System.out.println("Warning: " + e.getMessage());
         } catch (FileNotFoundException e) {
             System.out.println("No existing transaction amounts data found in " + filename + ". Starting fresh.");
         } catch (IOException e) {
             e.printStackTrace();
         }
         return stats;
+    }
+
+    private static void validateTransactionAmounts(double[] amounts) throws InvalidTransactionAmountsDataException {
+        for (int i = 0; i < amounts.length; i++) {
+            if (amounts[i] <= 0) {
+                throw new InvalidTransactionAmountsDataException("Transaction amount at index " + i + " is non-positive.");
+            }
+        }
     }
     
     public static void saveTransactionMatrix(TransactionMatrix transactionMatrix, String filename) {
