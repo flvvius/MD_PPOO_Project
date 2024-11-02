@@ -22,7 +22,7 @@ public class Main {
 
     public static void main(String[] args) {
         accountList = FileManager.loadAccountsFromJSON("accounts.json");
-        transactionList = FileManager.loadTransactionsFromJSON("transactions.json");
+        transactionList = FileManager.loadTransactionsFromJSON("transactions.json", accountList);
         transactionStatistics = FileManager.loadTransactionAmounts("transactionAmounts.json");
         transactionMatrix = FileManager.loadTransactionMatrix(accountList, "transactionMatrix.json");
         
@@ -67,6 +67,7 @@ public class Main {
                 	transactionMatrix.displayTransactionMatrix();
                 	break;
                 case 8:
+                	// TO DO: validare date (si de la tastatura si din fisiere), interfata grafica, documentatie word
                 	break;
                 case 9:
                 	// generare statistici si rapoarte

@@ -5,6 +5,9 @@ import com.google.gson.reflect.TypeToken;
 
 import entities.Account;
 import entities.Transaction;
+import exceptions.InvalidAccountDataException;
+import exceptions.InvalidTransactionDataException;
+import exceptions.InvalidTransactionMatrixDataException;
 
 import com.google.gson.GsonBuilder;
 
@@ -12,8 +15,10 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class FileManager {
 
@@ -23,7 +28,19 @@ public class FileManager {
         List<Account> accounts = new ArrayList<>();
         try (Reader reader = new FileReader(filename)) {
             Type listType = new TypeToken<ArrayList<Account>>() {}.getType();
-            accounts = gson.fromJson(reader, listType);
+            List<Account> rawAccounts = gson.fromJson(reader, listType);
+
+            if (rawAccounts != null) {
+                Set<String> accountNumbers = new HashSet<>();
+                for (Account account : rawAccounts) {
+                    try {
+                        validateAccount(account, accountNumbers);
+                        accounts.add(account);
+                    } catch (InvalidAccountDataException e) {
+                        System.out.println("Warning: " + e.getMessage());
+                    }
+                }
+            }
             System.out.println("Accounts loaded from " + filename);
         } catch (FileNotFoundException e) {
             System.out.println("No existing account data found in " + filename + ". Starting fresh.");
@@ -31,6 +48,22 @@ public class FileManager {
             e.printStackTrace();
         }
         return accounts;
+    }
+  
+    private static void validateAccount(Account account, Set<String> accountNumbers) throws InvalidAccountDataException {
+        if (account.getAccountNo() == null || account.getAccountNo().trim().isEmpty()) {
+            throw new InvalidAccountDataException("Account number is missing or empty.");
+        }
+        if (account.getOwner() == null || account.getOwner().trim().isEmpty()) {
+            throw new InvalidAccountDataException("Owner is missing for account number " + account.getAccountNo());
+        }
+        if (account.getBalance() < 0) {
+            throw new InvalidAccountDataException("Balance cannot be negative for account number " + account.getAccountNo());
+        }
+        if (accountNumbers.contains(account.getAccountNo())) {
+            throw new InvalidAccountDataException("Duplicate account number found: " + account.getAccountNo());
+        }
+        accountNumbers.add(account.getAccountNo());
     }
 
     public static void saveAccountsToJSON(List<Account> accounts, String filename) {
@@ -42,13 +75,22 @@ public class FileManager {
         }
     }
 
-    public static List<Transaction> loadTransactionsFromJSON(String filename) {
+    public static List<Transaction> loadTransactionsFromJSON(String filename, List<Account> accountList) {
         List<Transaction> transactions = new ArrayList<>();
         try (Reader reader = new FileReader(filename)) {
             Type listType = new TypeToken<ArrayList<Transaction>>() {}.getType();
-            transactions = gson.fromJson(reader, listType);
-            if (transactions == null) {
-                transactions = new ArrayList<>();
+            List<Transaction> rawTransactions = gson.fromJson(reader, listType);
+
+            if (rawTransactions != null) {
+                Set<String> transactionIds = new HashSet<>();
+                for (Transaction transaction : rawTransactions) {
+                    try {
+                        validateTransaction(transaction, transactionIds, accountList);
+                        transactions.add(transaction);
+                    } catch (InvalidTransactionDataException e) {
+                        System.out.println("Warning: " + e.getMessage());
+                    }
+                }
             }
             System.out.println("Transactions loaded from " + filename);
         } catch (FileNotFoundException e) {
@@ -57,6 +99,56 @@ public class FileManager {
             e.printStackTrace();
         }
         return transactions;
+    }
+    
+    private static void validateTransaction(Transaction transaction, Set<String> transactionIds, List<Account> accountList) throws InvalidTransactionDataException {
+        if (transaction.getTransactionId() == null || transaction.getTransactionId().trim().isEmpty()) {
+            throw new InvalidTransactionDataException("Transaction ID is missing or empty.");
+        }
+        if (transactionIds.contains(transaction.getTransactionId())) {
+            throw new InvalidTransactionDataException("Duplicate transaction ID found: " + transaction.getTransactionId());
+        }
+        transactionIds.add(transaction.getTransactionId());
+
+        if (transaction.getAmount() <= 0) {
+            throw new InvalidTransactionDataException("Transaction amount must be positive for transaction ID " + transaction.getTransactionId());
+        }
+        if (transaction.getDate() == null) {
+            throw new InvalidTransactionDataException("Transaction date is missing for transaction ID " + transaction.getTransactionId());
+        }
+        if (transaction.getType() == null) {
+            throw new InvalidTransactionDataException("Transaction type is missing for transaction ID " + transaction.getTransactionId());
+        }
+        if (!isValidTransactionType(transaction.getType())) {
+            throw new InvalidTransactionDataException("Invalid transaction type '" + transaction.getType() + "' for transaction ID " + transaction.getTransactionId());
+        }
+        if (transaction.getSourceAccountNo() == null || transaction.getSourceAccountNo().trim().isEmpty()) {
+            throw new InvalidTransactionDataException("Source account number is missing for transaction ID " + transaction.getTransactionId());
+        }
+        if (!accountExists(transaction.getSourceAccountNo(), accountList)) {
+            throw new InvalidTransactionDataException("Source account " + transaction.getSourceAccountNo() + " does not exist for transaction ID " + transaction.getTransactionId());
+        }
+        if (transaction.getType() == TransactionType.TRANSFER) {
+            if (transaction.getDestinationAccountNo() == null || transaction.getDestinationAccountNo().trim().isEmpty()) {
+                throw new InvalidTransactionDataException("Destination account number is missing for transfer transaction ID " + transaction.getTransactionId());
+            }
+            if (!accountExists(transaction.getDestinationAccountNo(), accountList)) {
+                throw new InvalidTransactionDataException("Destination account " + transaction.getDestinationAccountNo() + " does not exist for transaction ID " + transaction.getTransactionId());
+            }
+        }
+    }
+    
+    private static boolean isValidTransactionType(TransactionType type) {
+        return type == TransactionType.DEPOSIT || type == TransactionType.WITHDRAWAL || type == TransactionType.TRANSFER;
+    }
+    
+    private static boolean accountExists(String accountNo, List<Account> accountList) {
+        for (Account account : accountList) {
+            if (account.getAccountNo().equals(accountNo)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void saveTransactionsToJSON(List<Transaction> transactions, String filename) {
@@ -115,17 +207,52 @@ public class FileManager {
         try (Reader reader = new FileReader(filename)) {
             TransactionMatrixData data = gson.fromJson(reader, TransactionMatrixData.class);
             if (data != null) {
+                validateTransactionMatrixData(data, accounts);
                 transactionMatrix.setAccountIndexMap(data.getAccountIndexMap());
                 transactionMatrix.setTransactionMatrix(data.getTransactionMatrix());
                 transactionMatrix.rebuildAccountsList(accounts);
             }
             System.out.println("Transaction matrix loaded from " + filename);
+        } catch (InvalidTransactionMatrixDataException e) {
+            System.out.println("Warning: " + e.getMessage());
+            transactionMatrix = new TransactionMatrix(accounts);
         } catch (FileNotFoundException e) {
             System.out.println("No existing transaction matrix data found in " + filename + ". Starting fresh.");
         } catch (IOException e) {
             e.printStackTrace();
         }
         return transactionMatrix;
+    }
+
+    private static void validateTransactionMatrixData(TransactionMatrixData data, List<Account> accounts) throws InvalidTransactionMatrixDataException {
+        Map<String, Integer> accountIndexMap = data.getAccountIndexMap();
+        double[][] matrix = data.getTransactionMatrix();
+        int accountCount = accounts.size();
+
+        if (accountIndexMap == null || matrix == null) {
+            throw new InvalidTransactionMatrixDataException("Transaction matrix data is missing.");
+        }
+
+        if (accountIndexMap.size() != accountCount || matrix.length != accountCount) {
+            throw new InvalidTransactionMatrixDataException("Transaction matrix dimensions do not match the number of accounts.");
+        }
+
+        for (String accountNo : accountIndexMap.keySet()) {
+            if (!accountExists(accountNo, accounts)) {
+                throw new InvalidTransactionMatrixDataException("Account " + accountNo + " in transaction matrix does not exist in account list.");
+            }
+        }
+
+        for (int i = 0; i < matrix.length; i++) {
+            if (matrix[i].length != accountCount) {
+                throw new InvalidTransactionMatrixDataException("Transaction matrix row " + i + " has incorrect length.");
+            }
+            for (int j = 0; j < matrix[i].length; j++) {
+                if (matrix[i][j] < 0) {
+                    throw new InvalidTransactionMatrixDataException("Transaction matrix contains negative value at [" + i + "][" + j + "].");
+                }
+            }
+        }
     }
 
 
