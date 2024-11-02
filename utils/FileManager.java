@@ -11,6 +11,10 @@ import exceptions.InvalidTransactionDataException;
 import exceptions.InvalidTransactionMatrixDataException;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -172,17 +176,13 @@ public class FileManager {
         }
     }
     
-    public static TransactionStatistics loadTransactionAmounts(String filename) {
+	public static TransactionStatistics loadTransactionAmounts(String filename) {
         TransactionStatistics stats = new TransactionStatistics(1000);
         try (Reader reader = new FileReader(filename)) {
-            double[] loadedAmounts = gson.fromJson(reader, double[].class);
-            if (loadedAmounts != null && loadedAmounts.length > 0) {
-                validateTransactionAmounts(loadedAmounts);
-                stats.setTransactionAmounts(loadedAmounts);
-                stats.setTransactionCount(loadedAmounts.length);
-            } else {
-                System.out.println("No transaction amounts found in " + filename + ". Starting with an empty array.");
-            }
+            JsonArray jsonAmounts = new JsonParser().parse(reader).getAsJsonArray();
+            double[] amounts = validateAndParseTransactionAmounts(jsonAmounts);
+            stats.setTransactionAmounts(amounts);
+            stats.setTransactionCount(amounts.length);
         } catch (InvalidTransactionAmountsDataException e) {
             System.out.println("Warning: " + e.getMessage());
         } catch (FileNotFoundException e) {
@@ -193,12 +193,25 @@ public class FileManager {
         return stats;
     }
 
-    private static void validateTransactionAmounts(double[] amounts) throws InvalidTransactionAmountsDataException {
-        for (int i = 0; i < amounts.length; i++) {
-            if (amounts[i] <= 0) {
-                throw new InvalidTransactionAmountsDataException("Transaction amount at index " + i + " is non-positive.");
+    private static double[] validateAndParseTransactionAmounts(JsonArray jsonAmounts) throws InvalidTransactionAmountsDataException {
+        List<Double> validAmounts = new ArrayList<>();
+
+        for (int i = 0; i < jsonAmounts.size(); i++) {
+            JsonElement element = jsonAmounts.get(i);
+            try {
+                double amount = element.getAsDouble();
+                if (amount <= 0) {
+                    System.out.println("Warning: Transaction amount at index " + i + " is non-positive and will be skipped.");
+                    continue;
+                }
+                validAmounts.add(amount);
+            } catch (ClassCastException | NumberFormatException | JsonParseException e) {
+                System.out.println("Warning: Transaction amount at index " + i + " is not a valid double and will be skipped.");
             }
         }
+
+        double[] amountsArray = validAmounts.stream().mapToDouble(Double::doubleValue).toArray();
+        return amountsArray;
     }
     
     public static void saveTransactionMatrix(TransactionMatrix transactionMatrix, String filename) {
